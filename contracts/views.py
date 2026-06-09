@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Document
 from .serializers import DocumentUploadSerializer, DocumentSerializer
+from .utils import extract_text_from_pdf, split_into_paragraphs
+import os
 
 # PDF upload karne ka API
 class DocumentUploadView(APIView):
@@ -16,10 +18,22 @@ class DocumentUploadView(APIView):
                 return Response({'error': 'Sirf PDF upload karo!'}, status=400)
 
             doc = serializer.save()
+
+            # PDF se text extract karo
+            pdf_path = doc.file.path
+            extracted_text = extract_text_from_pdf(pdf_path)
+            paragraphs = split_into_paragraphs(extracted_text)
+
+            # Status update karo
+            doc.status = 'processed'
+            doc.save()
+
             return Response({
-                'message': 'Upload successful!',
+                'message': 'Upload aur extraction successful!',
                 'document_id': doc.id,
-                'status': doc.status
+                'status': doc.status,
+                'total_paragraphs': len(paragraphs),
+                'preview': paragraphs[:3]  # pehle 3 paragraphs dikhao
             }, status=201)
 
         return Response(serializer.errors, status=400)
